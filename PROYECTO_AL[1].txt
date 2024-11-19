@@ -1,0 +1,761 @@
+// PROYECTO AL
+
+#include "stdio.h"
+#include "stdlib.h"
+#include "string.h"
+#include "math.h"
+
+enum  { A_MINU_TIL = 160, I_MINU_TIL, O_MINU_TIL, U_MINU_TIL, ENIE_MINU, ENIE_MAYU };
+#define E_MINU_TIL  130
+#define A_MAYU_TIL  181
+#define E_MAYU_TIL  144
+#define I_MAYU_TIL  214
+#define O_MAYU_TIL  224
+#define U_MAYU_TIL  233
+#define SIGNO_INTE  168 //¿
+#define SIGNO_EXCL  173 //¡
+#define BORRAR_PANTALLA  system("cls")
+
+enum  { C_0, C_1 ,C_2, C_3};
+enum  { ALTA   = 1, BAJA,   BUSQUEDA, CAMBIO,       LISTADO,     DIAGNOSTICO, GUARDAR, SALIR };
+enum  { NOMBRE = 1, GENERO, EDAD,     HIPERTENSION, CARDIOPATIA, TABAQUISMO,  IMC,     NIVEL_DE_HBA1C,
+        NIVEL_DE_GLUCOSA,   DIABETES, CANCELAR};
+
+#define CANTIDAD_MAX_PACIENTES     2000
+#define TAMANIO_MAX_NOMBRE         30
+#define MODO_LECTURA              "r"
+#define MODO_ESCRITURA            "w"
+#define DELIMITADOR_NOMBRE        '|'
+#define ENTER  			          '\n'
+#define FIN_DE_CADENA             '\0'
+#define SIGNO_MENOS               '-'
+#define ENTER                     '\n'
+#define PUNTO                     '.'
+#define NULO                      'X'
+#define SI                        'S'
+#define NO                        'N'
+#define FEMENINO                  'F'
+#define MASCULINO                 'M'
+
+#define NOMBRE_ARCHIVO            "Pacientes.txt"
+#define PACIENTE_VALIDO            paciente>=C_0 && paciente<cuentaPacientes
+
+#define CERO          48
+#define NUEVE         57
+#define C_10          10
+#define C_100         100
+#define C_1000        1000
+
+/////////////////////////////////////////////////////////
+
+struct Paciente{
+    char  nombre    [TAMANIO_MAX_NOMBRE + C_1];
+    char  tabaquismo[C_2 + C_1];
+    char  genero;
+    char  hipertension;
+    char  cardiopatia;
+    int   edad;
+    int   nivelDeGlucosa;
+    float nivelDeHBA1C;
+    float imc;
+
+    char   diabetes;
+};
+
+struct Paciente pacientes[CANTIDAD_MAX_PACIENTES];
+int    cuentaPacientes;
+
+/////////////////////////////////////////////////////////
+
+void pausar();
+
+void reiniciarPaciente   (int i);
+void inicializarRegistros();
+
+void mostrarMenuPrincipal();
+void mostrarMenuDeCambios();
+void mostrarTituloDeLosCampos();
+void mostrarPaciente(int i);
+
+int  capturarOpcion();
+int  hayPacientesRegistrados();
+
+void hacerAltaDePaciente();
+void leerCadena(int tamanio, char* tipo, char* cadena);
+
+int   capturarEntero(char* tipo, int   limiteInferior, int   limiteSuperior);
+float capturarFloat (char* tipo, float limiteInferior, float limiteSuperior);
+char  capturarChar  (char* tipo, char  op1, char op2);
+
+void hacerBajaDePaciente();
+void eliminarPaciente(int i);
+int  confirmarBajaDe (int i);
+
+void hacerConsultaDePaciente();
+void hacerCambioEnPaciente  ();
+void cambiarCampoDePaciente (int i);
+
+void hacerListadoDePacientes();
+void listarPacientes();
+
+void hacerBusquedaDePacientes();
+void busquedaDePaciente();
+int  buscar(char* buscada, int comparada);
+
+void hacerGuardadoDeCambios();
+
+int  capturarPaciente();
+void mostrarDefiniciones();
+
+void leerTabaquismo(char* cadena);
+
+float leerNumero(char* tipo);
+
+void  hacerConsultaRapida();
+void  apoyoParaDiagnosticoRapido(struct Paciente pacienteAnalizado);
+float obtenerDistancia          (struct Paciente pacienteAnalizado, int comparado);
+
+int main(){
+    int opcion;
+    int continuaPrograma;
+    inicializarRegistros();
+
+    do{
+        mostrarMenuPrincipal();
+        printf("Elige una opci%cn: ", O_MINU_TIL);
+        opcion = capturarOpcion();
+        continuaPrograma = opcion != SALIR;
+        switch(opcion){
+        case ALTA:     hacerAltaDePaciente();      break;
+        case BAJA:     hacerBajaDePaciente();      break;
+        case BUSQUEDA: hacerBusquedaDePacientes(); break;
+        case CAMBIO:   hacerCambioEnPaciente();    break;
+        case LISTADO:  hacerListadoDePacientes();  break;
+        case DIAGNOSTICO: hacerConsultaRapida();   break;
+        case GUARDAR:  hacerGuardadoDeCambios();   break;
+        default:
+            if(continuaPrograma) printf("\nOpci%cn no v%clida!\n", O_MINU_TIL, A_MINU_TIL);
+        }
+        if(continuaPrograma) pausar();
+    }while(continuaPrograma);
+    printf("\n");
+    return C_0;
+}
+
+void pausar(){
+    printf("Presiona ENTER para continuar...");
+    while(getchar() != ENTER);
+}
+void reiniciarPaciente(int i){
+    pacientes[i].nombre[C_0]     = FIN_DE_CADENA;
+    pacientes[i].tabaquismo[C_0] = FIN_DE_CADENA;
+    pacientes[i].genero          = NULO;
+    pacientes[i].hipertension    = NULO;
+    pacientes[i].cardiopatia     = NULO;
+    pacientes[i].nivelDeGlucosa  = C_0;
+    pacientes[i].edad            = C_0;
+    pacientes[i].imc             = (float)C_0;
+    pacientes[i].nivelDeHBA1C    = (float)C_0;
+    pacientes[i].diabetes        = NO;
+}
+void inicializarRegistros(){
+    int   cantidadRegistrosEnArchivo;
+    int   continuarEscribiendo;
+    char  caracter;
+    FILE* archivo;
+    archivo = fopen(NOMBRE_ARCHIVO, MODO_LECTURA); //Abrir/crear archivo.txt en modo tal.
+    int   i = C_0, j;
+    if(archivo != NULL){
+        fscanf(archivo, "%d", &cantidadRegistrosEnArchivo);
+        cuentaPacientes = cantidadRegistrosEnArchivo;
+        fgetc (archivo); // LIMPIAR ENTER ***
+        while(i < cantidadRegistrosEnArchivo){  // Mientras no se llegue al final del archivo
+            j = C_0;
+            do{
+                caracter = fgetc(archivo);
+                continuarEscribiendo = caracter!=DELIMITADOR_NOMBRE && j<TAMANIO_MAX_NOMBRE;
+                if(continuarEscribiendo) pacientes[i].nombre[j++] = caracter;
+                else		             pacientes[i].nombre[j]   = FIN_DE_CADENA;
+            }while(continuarEscribiendo);
+            while(caracter!=DELIMITADOR_NOMBRE && fgetc(archivo)!=DELIMITADOR_NOMBRE);
+
+            fscanf(archivo, "%c|", &(pacientes[i].genero));
+            fscanf(archivo, "%d|", &(pacientes[i].edad));
+            fscanf(archivo, "%c|", &(pacientes[i].hipertension));
+            fscanf(archivo, "%c|", &(pacientes[i].cardiopatia));
+            fscanf(archivo, "%c%c|", &(pacientes[i].tabaquismo[C_0]), &(pacientes[i].tabaquismo[C_1]));
+            pacientes[i].tabaquismo[C_2] = FIN_DE_CADENA;
+            fscanf(archivo, "%f|", &(pacientes[i].imc));
+            fscanf(archivo, "%f|", &(pacientes[i].nivelDeHBA1C));
+            fscanf(archivo, "%d|", &(pacientes[i].nivelDeGlucosa));
+            fscanf(archivo, "%c",  &(pacientes[i].diabetes));
+            fgetc(archivo);
+            i++;
+        }
+        fclose(archivo);
+    }
+    else printf("No se pudo abrir el archivo!\n\n");
+}
+void mostrarMenuPrincipal(){
+    BORRAR_PANTALLA;
+    printf("PROGRAMA PARA GESTI%cN DE PACIENTES\n\n", O_MAYU_TIL);
+    printf("Men%c principal:\n",         U_MINU_TIL);
+    printf("%d. Dar paciente de alta\n", ALTA);
+    printf("%d. Dar paciente de baja\n", BAJA);
+    printf("%d. Buscar pacientes\n",     BUSQUEDA);
+    printf("%d. Cambiar informaci%cn de un paciente\n", CAMBIO, O_MINU_TIL);
+    printf("%d. Listar pacientes\n",     LISTADO);
+    printf("%d. Apoyo para consulta r%cpida\n",         DIAGNOSTICO, A_MINU_TIL);
+    printf("%d. Guardar cambios\n",      GUARDAR);
+    printf("%d. Salir\n\n",              SALIR);
+}
+void mostrarMenuDeCambios(){
+    printf("\nPosibles cambios:\n");
+    printf("%d. Nombre\n",        NOMBRE);
+    printf("%d. G%cnero\n",       GENERO, E_MINU_TIL);
+    printf("%d. Edad\n",          EDAD);
+    printf("%d. Hipertensi%cn\n", HIPERTENSION, O_MINU_TIL);
+    printf("%d. Cardiopatia\n",   CARDIOPATIA);
+    printf("%d. Tabaquismo\n",    TABAQUISMO);
+    printf("%d. Indice de masa corporal(IMC)\n", IMC);
+    printf("%d. Nivel de HBA1C\n",   NIVEL_DE_HBA1C);
+    printf("%d. Nivel de glucosa\n", NIVEL_DE_GLUCOSA);
+    printf("%d. Diabetes\n", DIABETES);
+    printf("%d. Cancelar\n", CANCELAR);
+}
+void mostrarTituloDeLosCampos(){
+    printf("----------------------------------------------------------------------------------------------------------------------------------\n");
+    printf("%-31s| ", "NOMBRE");
+    printf("G%cNERO | EDAD | HIPERTENSI%cN | CARDIOPATIA | TABAQUISMO | IMC     | HBA1C   | GLUCOSA  | DIABETES\n", E_MAYU_TIL, O_MAYU_TIL);
+    printf("----------------------------------------------------------------------------------------------------------------------------------\n");
+}
+void mostrarPaciente(int i){
+    printf("%-31s| ",  pacientes[i].nombre);
+    printf("%-6c | ",  pacientes[i].genero);
+    printf("%-4d | ",  pacientes[i].edad);
+    printf("%-12c | ", pacientes[i].hipertension);
+    printf("%-11c | ", pacientes[i].cardiopatia);
+    printf("%-11s| ",  pacientes[i].tabaquismo);
+    printf("%-8.2f| ", pacientes[i].imc);
+    printf("%-8.2f| ", pacientes[i].nivelDeHBA1C);
+    printf("%-9d| ",   pacientes[i].nivelDeGlucosa);
+    printf("%c",       pacientes[i].diabetes);
+    printf("\n----------------------------------------------------------------------------------------------------------------------------------\n");
+}
+void mostrarDefiniciones(){
+    printf("\nN  -> No,       S  -> S%c\n", I_MINU_TIL);
+    printf("F  -> Femenino, M  -> Masculino\n");
+    printf("NU -> Nunca,    AC -> Actualmente, NI -> Sin informaci%cn\n\n", O_MINU_TIL);
+}
+int capturarOpcion(){
+    int opcion;
+    scanf("%d", &opcion);
+    while(getchar() != ENTER);
+    return opcion;
+}
+int hayPacientesRegistrados(){
+    int hay = cuentaPacientes > C_0;
+    if(!hay) printf("No hay pacientes registrados!\n\n");
+    return hay;
+}
+void hacerAltaDePaciente(){
+    BORRAR_PANTALLA;
+    printf("DAR PACIENTE DE ALTA\n\n");
+    if(cuentaPacientes < CANTIDAD_MAX_PACIENTES){
+        printf("Ingresa los datos para el paciente #%d\n\n",   cuentaPacientes + C_1);
+        leerCadena(TAMANIO_MAX_NOMBRE, "Nombre:           ", &(pacientes[cuentaPacientes].nombre[C_0]) );
+        pacientes[cuentaPacientes].genero       = capturarChar  ("Genero:           ", FEMENINO, MASCULINO);
+        pacientes[cuentaPacientes].edad         = capturarEntero("Edad:             ", C_0, C_100);
+        pacientes[cuentaPacientes].hipertension = capturarChar  ("Hipertension:     ", SI, NO);
+        pacientes[cuentaPacientes].cardiopatia  = capturarChar  ("Cardiopatia:      ", SI, NO);
+        leerTabaquismo(&(pacientes[cuentaPacientes].tabaquismo[C_0]));
+        pacientes[cuentaPacientes].imc = capturarFloat ("IMC:              ",              (float)C_0, (float)C_100);
+        pacientes[cuentaPacientes].nivelDeHBA1C     = capturarFloat ("Nivel de HBA1C:   ", (float)C_0, (float)C_1000);
+        pacientes[cuentaPacientes].nivelDeGlucosa   = capturarEntero("Nivel de glucosa: ", C_0, C_1000);
+        pacientes[cuentaPacientes++].diabetes       = capturarChar  ("Diabetes:         ", SI,  NO);
+        printf("\n\n");
+    }
+    else printf("No se puede dar de alta otro paciente!\n\n");
+}
+void leerCadena (int tamanio, char* tipo, char* cadena){
+    int  continuaLeyendo;
+    char caracter;
+    int  i = C_0;
+    printf("%s", tipo);
+    do{
+        caracter = getchar();
+        continuaLeyendo = caracter!=ENTER && i<tamanio;
+        if(continuaLeyendo) cadena[i++] = caracter;
+        else if(i!=C_0)   *(cadena+i)   = FIN_DE_CADENA;
+    }while(continuaLeyendo || i==C_0);
+    while(caracter!=ENTER && getchar()!=ENTER);
+}
+int capturarEntero(char* tipo, int limiteInferior, int limiteSuperior){
+    int entero;
+    int enteroInvalido;
+    int repeticiones = C_1;
+    do{
+        entero = (int)leerNumero(tipo); //scanf("%d", &entero);
+        //while(getchar() != ENTER);
+        enteroInvalido = entero<limiteInferior || entero>limiteSuperior;
+        if(enteroInvalido && repeticiones){
+            printf("\nValor inv%clido!(entre %d y %d, inclusivo)\n", A_MINU_TIL, limiteInferior, limiteSuperior);
+            pausar();
+            printf("\n");
+            repeticiones = C_0;
+        }
+    }
+    while(enteroInvalido);
+    return entero;
+}
+float capturarFloat(char* tipo, float limiteInferior, float limiteSuperior){
+    float flotante;
+    int   flotanteInvalido;
+    int   repeticiones = C_1;
+    do{
+        flotante = leerNumero(tipo); //scanf("%f", &flotante);
+        //printf(" ");
+        //while(getchar() != ENTER);
+        flotanteInvalido = flotante<limiteInferior || flotante>limiteSuperior;
+        if(flotanteInvalido && repeticiones){
+            printf("\nValor inv%clido!(entre %d y %d, inclusivo)\n", A_MINU_TIL, (int)limiteInferior, (int)limiteSuperior);
+            pausar();
+            printf("\n");
+            repeticiones = C_0;
+        }
+    }
+    while(flotanteInvalido);
+    return flotante;
+}
+char capturarChar(char* tipo, char op1, char op2){
+    char caracter;
+    int  caracterInvalido;
+    int  repeticiones = C_1;
+    do{
+        printf("%s", tipo);
+        scanf("%c",  &caracter);
+        if(caracter != ENTER) while(getchar() != ENTER); //***
+        caracterInvalido = caracter!=op1 && caracter!=op2;
+        if(caracterInvalido && repeticiones){
+            printf("\nValor inv%clido!(solo %c o %c)\n", A_MINU_TIL, op1, op2);
+            pausar();
+            printf("\n");
+            repeticiones = C_0;
+        }
+    }
+    while(caracterInvalido);
+    return caracter;
+}
+void hacerBajaDePaciente(){
+    int paciente;
+    BORRAR_PANTALLA;
+    printf("DAR PACIENTE DE BAJA\n\n");
+    if(hayPacientesRegistrados()){
+        paciente = capturarPaciente();
+        if(PACIENTE_VALIDO){
+            if(confirmarBajaDe(paciente)) eliminarPaciente(paciente);
+            else 			              printf("\n\nPaciente #%d conservado!\n\n", paciente+C_1);
+        }
+        else printf("\nPaciente inv%clido!\n", A_MINU_TIL);
+    }
+}
+void eliminarPaciente(int i){
+    int j;
+    for(j=i; j<(cuentaPacientes-C_1); j++) pacientes[j] = pacientes[j+C_1];
+    reiniciarPaciente(j);
+    printf("\n\nPaciente #%d eliminado!\n\n",  i+C_1);
+    cuentaPacientes--;
+}
+int  confirmarBajaDe  (int i){
+    char respuesta;
+    int  respuestaInvalida;
+    int  repeticiones = C_1;
+    printf("\n");
+    mostrarTituloDeLosCampos();
+    mostrarPaciente(i);
+    mostrarDefiniciones();
+    do{
+        printf("\nEst%c seguro que desea eliminar al paciente #%d? (S/N) -> ", A_MINU_TIL, i+C_1);
+        scanf("%c", &respuesta);
+        while(getchar() != ENTER);
+        respuestaInvalida = respuesta!=SI && respuesta!=NO;
+        if(respuestaInvalida && repeticiones){
+            printf("\nRespuesta inv%clida!(solo S o N)\n", A_MINU_TIL);
+            pausar();
+            repeticiones = C_0;
+        }
+    }while(respuestaInvalida);
+    if(respuesta == SI) return C_1;
+    else                return C_0;
+}
+void hacerConsultaDePaciente(){
+    int paciente;
+    BORRAR_PANTALLA;
+    printf("BUSCAR PACIENTE POR N%cMERO\n\n", U_MAYU_TIL);
+    if(hayPacientesRegistrados()){
+        paciente = capturarPaciente();
+        if(PACIENTE_VALIDO){
+            printf("\n");
+            mostrarTituloDeLosCampos();
+            mostrarPaciente(paciente);
+            mostrarDefiniciones();
+            printf("\n");
+        }
+        else printf("\nPaciente inv%clido!\n", A_MINU_TIL);
+    }
+}
+void hacerCambioEnPaciente(){
+    int paciente;
+    BORRAR_PANTALLA;
+    printf("CAMBIAR INFORMACI%cN DE UN PACIENTE\n\n", O_MAYU_TIL);
+    if(hayPacientesRegistrados()){
+        paciente = capturarPaciente();
+        if(PACIENTE_VALIDO) cambiarCampoDePaciente(paciente);
+        else 		        printf("\nPaciente inv%clido!\n", A_MINU_TIL);
+    }
+}
+void cambiarCampoDePaciente(int i){
+    int opcion;
+    int opcionInvalida;
+    do{
+        BORRAR_PANTALLA;
+        printf("CAMBIANDO INFORMAC%cN DEL PACIENTE #%d\n\n", O_MAYU_TIL, i+C_1);
+        mostrarTituloDeLosCampos();
+        mostrarPaciente(i);
+        mostrarDefiniciones();
+        mostrarMenuDeCambios();
+        printf("Ingresa una opci%cn: ", O_MINU_TIL);
+        opcion = capturarOpcion();
+        opcionInvalida = opcion<NOMBRE || opcion>CANCELAR;
+        if(opcionInvalida){
+            printf("\nOpci%cn no v%clida!\n", O_MINU_TIL, A_MINU_TIL);
+            pausar();
+        }
+    }while(opcionInvalida);
+    printf("\n");
+    switch (opcion){
+    case NOMBRE:           leerCadena(TAMANIO_MAX_NOMBRE, "Nombre: ", &(pacientes[i].nombre[C_0]) ); break;
+    case GENERO: 	       pacientes[i].genero = capturarChar  ("Genero: ", FEMENINO, MASCULINO);    break;
+    case EDAD:             pacientes[i].edad =   capturarEntero("Edad: ", C_0, C_1000); 			 break;
+    case HIPERTENSION:     pacientes[i].hipertension = capturarChar("Hipertension: ", SI, NO);       break;
+    case CARDIOPATIA:      pacientes[i].cardiopatia  = capturarChar("Cardiopatia: ",  SI, NO);       break;
+    case TABAQUISMO:       leerTabaquismo(&(pacientes[i].tabaquismo[C_0]));                          break;
+    case IMC:              pacientes[i].imc =            capturarFloat ("IMC: ",              (float)C_0, (float)C_1000); break;
+    case NIVEL_DE_HBA1C:   pacientes[i].nivelDeHBA1C   = capturarFloat ("Nivel de HBA1C: ",   (float)C_0, (float)C_1000); break;
+    case NIVEL_DE_GLUCOSA: pacientes[i].nivelDeGlucosa = capturarEntero("Nivel de glucosa: ", C_0, C_1000);                 break;
+    case DIABETES:         pacientes[i].diabetes       = capturarChar  ("Diabetes:         ", SI,  NO);
+    default:;
+    }
+    printf("\n");
+}
+void hacerListadoDePacientes(){
+    BORRAR_PANTALLA;
+    printf("LISTADO DE PACIENTES\n\n");
+    if(hayPacientesRegistrados()) listarPacientes();
+}
+void listarPacientes(){
+    int i;
+    mostrarTituloDeLosCampos();
+    for(i=C_0; i<cuentaPacientes; i++) mostrarPaciente(i);
+    mostrarDefiniciones();
+    printf("\n");
+}
+void hacerBusquedaDePacientes(){
+    if(hayPacientesRegistrados()){
+        int opcion;
+        int opcionInvalida;
+        do{
+            BORRAR_PANTALLA;
+            printf("BUSCAR PACIENTES\n\n");
+            printf("%cC%cmo quiere hacer la b%csqueda?\n", SIGNO_INTE, O_MINU_TIL, U_MINU_TIL);
+            printf("1. Por n%cmero\n", U_MINU_TIL);
+            printf("2. Por nombre\n");
+            printf("Ingrese el n%cmero de una opci%cn: ",  U_MINU_TIL, O_MINU_TIL);
+            opcion = capturarOpcion();
+            opcionInvalida = opcion!=C_1 && opcion!=C_2;
+            if(opcionInvalida){
+                printf("\nOpci%cn inv%clida!\n", O_MINU_TIL, A_MINU_TIL);
+                pausar();
+            }
+        }while(opcionInvalida);
+
+        switch (opcion){
+        case C_1: hacerConsultaDePaciente();  break;
+        case C_2: busquedaDePaciente();       break;
+        default:;
+        }
+    }
+}
+void busquedaDePaciente(){
+    int  i;
+    int  cantidadCoincidencias = C_0;
+    char buscada[TAMANIO_MAX_NOMBRE + C_1];
+    BORRAR_PANTALLA;
+    printf("BUSCAR PACIENTE POR NOMBRE\n\n");
+    leerCadena(TAMANIO_MAX_NOMBRE, "Ingrese el nombre(o parte de) del paciente buscado: ", buscada);
+    printf("\nCoincidencias:\n");
+    mostrarTituloDeLosCampos();
+    for(i=C_0; i<cuentaPacientes; i++){
+        if(buscar(buscada, i)){
+            mostrarPaciente(i);
+            cantidadCoincidencias++;
+        }
+    }
+    if(cantidadCoincidencias) mostrarDefiniciones();
+    printf("\nHubo %d coincidencia(s)!\n\n", cantidadCoincidencias);
+}
+
+int  buscar          (char* buscada, int comparada){
+    int i, j;
+    int tamanioBuscada   = strlen(buscada);
+    int tamanioComparada = strlen(pacientes[comparada].nombre);
+    int diferenciaTamanios = tamanioComparada - tamanioBuscada;
+    int haySubString = C_0;
+    for(i=C_0;     i<=diferenciaTamanios; i++){
+        for(j=C_0, haySubString=C_1; j<tamanioBuscada; j++){
+            if(*(buscada+j) != pacientes[comparada].nombre[i+j]){
+                haySubString = C_0;
+                break;
+            }
+        }
+        if(haySubString) break;
+    }
+    return haySubString;
+}
+void hacerGuardadoDeCambios(){
+    int   i = C_0;
+    FILE* archivo;
+    BORRAR_PANTALLA;
+    printf("GUARDAR CAMBIOS EN ARCHIVO\n\n");
+    archivo = fopen(NOMBRE_ARCHIVO, MODO_ESCRITURA); //Abrir/crear archivo.txt en modo tal.
+    if(archivo != NULL){
+        fprintf(archivo, "%d\n", cuentaPacientes);
+        for(i=C_0; i<cuentaPacientes; i++){
+            fprintf(archivo, "%s|",   pacientes[i].nombre);
+            fprintf(archivo, "%c|",   pacientes[i].genero);
+            fprintf(archivo, "%d|",   pacientes[i].edad);
+            fprintf(archivo, "%c|",   pacientes[i].hipertension);
+            fprintf(archivo, "%c|",   pacientes[i].cardiopatia);
+            fprintf(archivo, "%s|",   pacientes[i].tabaquismo);
+            fprintf(archivo, "%.2f|", pacientes[i].imc);
+            fprintf(archivo, "%.2f|", pacientes[i].nivelDeHBA1C);
+            fprintf(archivo, "%d|",   pacientes[i].nivelDeGlucosa);
+            fprintf(archivo, "%C\n",  pacientes[i].diabetes);
+        }
+        printf("Registros guardados en el archivo!\n\n");
+        fclose(archivo);
+    }
+    else printf("No se pudo guardar en archivo!\n\n");
+}
+int capturarPaciente(){
+    printf("Ingresa un n%cmero de paciente(1 a %d): ", U_MINU_TIL, cuentaPacientes);
+    return capturarOpcion() - C_1;
+}
+void leerTabaquismo(char* cadena){
+    char*  posiblesEstados[C_3] = {"NU","AC","NI"};
+    int   estadoValido;
+    int   i, j, repeticiones = C_1;
+    do{
+        leerCadena(C_2, "Tabaquismo:       ", cadena );
+        for(i=C_0; i<C_3; i++){
+            for(j=C_0, estadoValido=C_1; j<C_2; j++ ){
+                if( *(posiblesEstados[i]+j) != *(cadena+j) ){  //*(posiblesEstados + (i*C_2) + j)
+                    estadoValido = C_0;
+                    break;
+                }
+            }
+            if(estadoValido) break;
+        }
+        if(!estadoValido && repeticiones){
+            printf("\nEstado de tabaquismo inv%clido!\n", A_MINU_TIL);
+            printf("NU para Nunca,\n");
+            printf("AC para actualmente o\n");
+            printf("NI si   no tiene el dato\n");
+            pausar();
+            printf("\n");
+            repeticiones = C_0;
+        }
+    }while(!estadoValido);
+}
+
+
+float leerNumero(char* tipo){
+    float entradaValidada;
+    float auxiliar;
+    char  entradas[C_100];
+    int   lecturaInvalida;
+    int   continuarLeyendo;
+    int   doblePunto;
+    int   indicePunto;
+    int   divisor = C_10, multiplicador;
+    int   i, j;
+
+    do{
+        i = C_0;
+        continuarLeyendo = C_1;
+        doblePunto 	     = C_0;
+        lecturaInvalida  = C_0;
+        printf("%s", tipo);
+        while(continuarLeyendo){
+            scanf("%c", &entradas[i]);
+            if(i==C_0 && entradas[i]==SIGNO_MENOS) {/*OK*/}
+            else if(entradas[i]==ENTER){
+                if(i!=C_0){
+                    continuarLeyendo = C_0;
+                    if(entradas[i-C_1] == PUNTO) lecturaInvalida = C_1;
+                }
+                else i--;
+            }
+            else if(entradas[i] == PUNTO){
+                if(doblePunto) lecturaInvalida = C_1;
+                doblePunto = C_1;
+            }
+            else if((int) entradas[i]<CERO || (int)entradas[i]>NUEVE) lecturaInvalida = C_1;
+            else          entradas[i] -= '0';
+            i++;
+            if(i==C_100) continuarLeyendo = C_0;
+        }
+        while(entradas[i-C_1]!=ENTER && getchar()!=ENTER); // LIMPIAR EXTRAS
+
+        if( (i==C_2 && entradas[C_0]==SIGNO_MENOS) || // CASO DONDE SOLO ENTRA "-" O NADA.
+            (i==C_1 && entradas[C_0]==ENTER) ) lecturaInvalida = C_1;
+
+        if(lecturaInvalida){
+            printf("\nEntrada num%crica inv%clida!\n", E_MINU_TIL, A_MINU_TIL);
+            pausar();
+            printf("\n");
+        }
+    }
+    while(lecturaInvalida);   // DO WHILE DE ENTRADA CORRECTA/VALIDADA.
+
+    indicePunto = -C_1;
+    for(j=C_0; j<(i-C_1); j++){
+        if((int)entradas[j] == PUNTO){
+            indicePunto = j;
+            break;
+        }
+    }
+    entradaValidada = (float)C_0;
+    if(indicePunto != -C_1){    //DECIMALES
+        divisor = C_10;
+        for(j=indicePunto+C_1; j<(i-C_1); j++){
+            auxiliar  = (float)entradas[j];
+            auxiliar /= (float)divisor;
+            entradaValidada += auxiliar;
+            divisor *= C_10;
+        }
+    }
+    else indicePunto = i - C_1;
+
+    i = C_0;
+    if(entradas[C_0] == SIGNO_MENOS) i = C_1;
+    // 123  ->  i=4-1=3 (3 números)  ->  i-1=2 a la 2 porque sería 100
+    multiplicador = pow(C_10, indicePunto - C_1 - i);
+    for(j=i; j<indicePunto; j++){
+        auxiliar = (float)entradas[j];
+        auxiliar        *= multiplicador;
+        entradaValidada += auxiliar;
+        multiplicador   /= C_10;
+    }
+    if(entradas[C_0] == SIGNO_MENOS) entradaValidada *= (float)-C_1;
+
+    return entradaValidada;
+}
+
+
+
+float obtenerDistancia(struct Paciente pacienteAnalizado, int comparado){
+
+    int hipertensionAnalizado = C_0, hipertensionComparado = C_0;
+    int cardiopatiaAnalizado  = C_0, cardiopatiaComparado  = C_0;
+    int tabaquismoAnalizado,   tabaquismoComparado;
+
+    if(pacienteAnalizado.hipertension == SI) hipertensionAnalizado = C_1;
+    if(pacienteAnalizado.cardiopatia  == SI) cardiopatiaAnalizado  = C_1;
+    if(pacientes[comparado].hipertension == SI) hipertensionComparado = C_1;
+    if(pacientes[comparado].cardiopatia  == SI) cardiopatiaComparado  = C_1;
+
+    if(pacienteAnalizado.tabaquismo[C_0]      == 'A') tabaquismoAnalizado = C_0;
+    else if(pacienteAnalizado.tabaquismo[C_1] == 'U') tabaquismoAnalizado = C_1;
+    else tabaquismoAnalizado = C_2;
+
+    if(pacientes[comparado].tabaquismo[C_0]      == 'A') tabaquismoComparado = C_0;
+    else if(pacientes[comparado].tabaquismo[C_1] == 'U') tabaquismoComparado = C_1;
+    else tabaquismoComparado = C_2;
+
+    return sqrt(
+        /*pow(pacienteAnalizado.edad  - pacientes[comparado].edad, C_2) +*/
+        pow(hipertensionAnalizado   - hipertensionComparado,     C_2) +
+        pow(cardiopatiaAnalizado    - cardiopatiaComparado,      C_2) +
+        pow(tabaquismoAnalizado     - tabaquismoComparado,       C_2) +
+        pow(pacienteAnalizado.imc            - pacientes[comparado].imc,            C_2) +
+        pow(pacienteAnalizado.nivelDeHBA1C   - pacientes[comparado].nivelDeHBA1C,   C_2) +
+        pow(pacienteAnalizado.nivelDeGlucosa - pacientes[comparado].nivelDeGlucosa, C_2)
+    );
+}
+void hacerConsultaRapida(){
+    struct Paciente paciente;
+    BORRAR_PANTALLA;
+
+    printf("APOYO PARA UNA CONSULTA R%cPIDA\n\n", A_MAYU_TIL);
+
+    if(cuentaPacientes == C_0)
+        printf("Deben tenerse registrados al menos 100 pacientes!\n");
+    else{
+        printf("Ingresa los datos del paciente para el que desea hacer un diagn%csnotico r%cpido\n\n",   O_MINU_TIL, A_MINU_TIL);
+        //paciente.edad         = capturarEntero("Edad:             ", C_0, C_100);
+        paciente.hipertension = capturarChar("Hipertension:     ", SI, NO);
+        paciente.cardiopatia  = capturarChar("Cardiopatia:      ", SI, NO);
+        leerTabaquismo(&(paciente.tabaquismo[C_0]));
+        paciente.imc = capturarFloat ("IMC:              ",            (float)C_0, (float)C_100);
+        paciente.nivelDeHBA1C   = capturarFloat ("Nivel de HBA1C:   ", (float)C_0, (float)C_1000);
+        paciente.nivelDeGlucosa = capturarEntero("Nivel de glucosa: ", C_0, C_1000);
+        printf("\n\n");
+    }
+
+    apoyoParaDiagnosticoRapido(paciente);
+
+}
+void apoyoParaDiagnosticoRapido(struct Paciente pacienteAnalizado) {
+
+	float distancias[CANTIDAD_MAX_PACIENTES];
+	float auxiliarDistancias;
+	int   auxiliarIndices;
+    int   indices[CANTIDAD_MAX_PACIENTES];
+    int   i, j;
+    int   cantidadAMostrar;
+
+    for(i=C_0; i<cuentaPacientes; i++){
+        distancias[i] = obtenerDistancia(pacienteAnalizado, i);
+        indices   [i] = i;
+    }
+    for(i=C_0; i<(cuentaPacientes - C_1); i++){
+        for(j=C_0; j<(cuentaPacientes - i - C_1); j++){
+            if(distancias[j] > distancias[j + C_1]){
+                auxiliarDistancias = distancias[j];
+                auxiliarIndices    = indices[j];
+                distancias[j] = distancias[j + C_1];
+                indices   [j] = indices   [j + C_1];
+                distancias[j + C_1] = auxiliarDistancias;
+                indices   [j + C_1] = auxiliarIndices;
+            }
+        }
+    }
+
+    printf("De los %d pacientes ordenados del m%cs al menos cercano, %ccu%cntos de ellos desea ver?\n", cuentaPacientes, A_MINU_TIL, SIGNO_INTE, A_MINU_TIL);
+    cantidadAMostrar = capturarEntero("Cantidad: ", C_1, cuentaPacientes);
+    printf("\n");
+
+    mostrarTituloDeLosCampos();
+    for(i=C_0; i<cantidadAMostrar; i++){
+        mostrarPaciente(indices[i]);
+    }
+    mostrarDefiniciones();
+}
+
+
+
+
+
+
+
